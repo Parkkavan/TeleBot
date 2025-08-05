@@ -1,0 +1,209 @@
+Final Bot Features
+Patients can:
+
+Set reminders (e.g., "take medicine at 7:00 PM daily")
+
+Reschedule reminders
+
+Cancel reminders
+
+The system:
+
+Saves reminders to MySQL
+
+Sends reminders via Telegram Bot at the correct time
+
+Admins can:
+
+View/update patient reminders from dashboard (optional)
+
+Can be integrated into the React-based patient dashboard
+
+🧱 Tech Stack Breakdown
+Feature	Tool/Technology
+Frontend Dashboard	React.js
+Backend API	Node.js + Express.js
+Database	MySQL
+Bot & Scheduler	Node.js + Telegram Bot API
+Scheduler Tool	node-cron or agenda
+
+📦 Folder Structure (suggested)
+bash
+Copy
+Edit
+project-root/
+├── client/                  # React.js frontend
+├── server/
+│   ├── index.js             # Express server
+│   ├── routes/
+│   │   └── reminders.js     # API endpoints
+│   ├── telegram/
+│   │   └── bot.js           # Telegram bot logic
+│   ├── jobs/
+│   │   └── scheduler.js     # Cron job to send messages
+│   ├── db.js                # DB connection
+│   └── models/
+│       └── Reminder.js      # SQL query helpers
+1️⃣ Step-by-Step Plan
+STEP 1: Create Telegram Bot
+Open Telegram and search for @BotFather
+
+Run /newbot, give it a name and username
+
+Get the BOT_TOKEN
+
+🔐 Save your bot token securely
+
+STEP 2: MySQL Table for Reminders
+sql
+Copy
+Edit
+CREATE TABLE reminders (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    patient_id INT NOT NULL,
+    telegram_id VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    schedule_time TIME NOT NULL,
+    repeat_type ENUM('once', 'daily', 'weekly') DEFAULT 'daily',
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+STEP 3: Backend API (Express.js)
+✅ /api/reminders routes
+js
+Copy
+Edit
+// server/routes/reminders.js
+const express = require('express');
+const router = express.Router();
+const Reminder = require('../models/Reminder');
+
+// Add reminder
+router.post('/add', async (req, res) => {
+  const data = req.body;
+  const result = await Reminder.addReminder(data);
+  res.json(result);
+});
+
+// Update reminder
+router.put('/update/:id', async (req, res) => {
+  const result = await Reminder.updateReminder(req.params.id, req.body);
+  res.json(result);
+});
+
+// Delete reminder
+router.delete('/delete/:id', async (req, res) => {
+  const result = await Reminder.deleteReminder(req.params.id);
+  res.json(result);
+});
+
+// Get all for user
+router.get('/user/:telegram_id', async (req, res) => {
+  const result = await Reminder.getRemindersByTelegramId(req.params.telegram_id);
+  res.json(result);
+});
+
+module.exports = router;
+STEP 4: Reminder Model (MySQL Queries)
+js
+Copy
+Edit
+// server/models/Reminder.js
+const db = require('../db');
+
+module.exports = {
+  addReminder: async (data) => {
+    const [result] = await db.query(
+      'INSERT INTO reminders (patient_id, telegram_id, message, schedule_time, repeat_type) VALUES (?, ?, ?, ?, ?)',
+      [data.patient_id, data.telegram_id, data.message, data.schedule_time, data.repeat_type]
+    );
+    return { id: result.insertId, ...data };
+  },
+  updateReminder: async (id, data) => {
+    await db.query(
+      'UPDATE reminders SET message=?, schedule_time=?, repeat_type=? WHERE id=?',
+      [data.message, data.schedule_time, data.repeat_type, id]
+    );
+    return { success: true };
+  },
+  deleteReminder: async (id) => {
+    await db.query('DELETE FROM reminders WHERE id=?', [id]);
+    return { success: true };
+  },
+  getRemindersByTelegramId: async (telegramId) => {
+    const [rows] = await db.query('SELECT * FROM reminders WHERE telegram_id=? AND is_active=1', [telegramId]);
+    return rows;
+  },
+  getAllActiveReminders: async () => {
+    const [rows] = await db.query('SELECT * FROM reminders WHERE is_active=1');
+    return rows;
+  }
+};
+STEP 5: Telegram Bot Logic
+js
+Copy
+Edit
+// server/telegram/bot.js
+const TelegramBot = require('node-telegram-bot-api');
+const Reminder = require('../models/Reminder');
+const token = 'YOUR_TELEGRAM_BOT_TOKEN';
+const bot = new TelegramBot(token, { polling: true });
+
+bot.onText(/\/start/, (msg) => {
+  bot.sendMessage(msg.chat.id, 'Welcome! You will now receive health reminders from our system.');
+});
+
+// Optional: Interact via Telegram
+bot.onText(/\/myreminders/, async (msg) => {
+  const reminders = await Reminder.getRemindersByTelegramId(msg.chat.id);
+  if (reminders.length === 0) return bot.sendMessage(msg.chat.id, 'No active reminders.');
+  reminders.forEach((r) => {
+    bot.sendMessage(msg.chat.id, `⏰ ${r.message} at ${r.schedule_time}`);
+  });
+});
+
+module.exports = bot;
+STEP 6: Scheduler (node-cron)
+js
+Copy
+Edit
+// server/jobs/scheduler.js
+const cron = require('node-cron');
+const Reminder = require('../models/Reminder');
+const bot = require('../telegram/bot');
+
+cron.schedule('* * * * *', async () => {
+  const now = new Date();
+  const hours = now.getHours().toString().padStart(2, '0');
+  const minutes = now.getMinutes().toString().padStart(2, '0');
+  const timeNow = `${hours}:${minutes}:00`;
+
+  const reminders = await Reminder.getAllActiveReminders();
+  reminders.forEach((r) => {
+    if (r.schedule_time === timeNow) {
+      bot.sendMessage(r.telegram_id, `🔔 Reminder: ${r.message}`);
+    }
+  });
+});
+✅ This job runs every minute and checks if there's a reminder matching the current time.
+
+STEP 7: Integrate into React Patient Dashboard
+⚙️ Backend API Integration
+In your React app (after patient logs in), allow them to:
+
+Add Reminder:
+
+js
+Copy
+Edit
+axios.post('/api/reminders/add', {
+  patient_id,
+  telegram_id, // collected at registration or via QR code interaction
+  message: 'Take medicine',
+  schedule_time: '19:00:00',
+  repeat_type: 'daily'
+});
+List/Update/Delete with corresponding API calls.
+
+✅ Final Integration Tip
+If you're using authentication (like JWT) for your dashboard, ensure each patient is linked to their Telegram chat ID, which you can collect when they start the bot and use /start. You can store that in a telegram_id column on the user table or associate it per reminder.
