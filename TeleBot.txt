@@ -24,6 +24,60 @@ health-reminder-bot/
 └── README.md
 
 
+1. Backend (Node.js/Express.js):
+
+API Endpoints:
+
+/reminders:
+POST: Create a new reminder.
+GET: Fetch all reminders for a specific patient.
+PUT/:id: Update an existing reminder.
+DELETE/:id: Delete a reminder.
+/patients/:id: (Potentially) to fetch patient details if not already available in the reminder creation context.
+Database Model (MySQL):
+
+reminders table:
+id (INT, PRIMARY KEY, AUTO_INCREMENT)
+patient_id (INT, FOREIGN KEY referencing the patients table)
+reminder_type (VARCHAR, e.g., 'medicine', 'water', 'exercise')
+reminder_time (DATETIME)
+message (TEXT, customizable message for the reminder)
+telegram_chat_id (VARCHAR, to store the patient's Telegram chat ID)
+created_at (TIMESTAMP)
+updated_at (TIMESTAMP)
+Telegram Integration (Node.js library node-telegram-bot-api):
+
+Set up a Telegram bot using BotFather and obtain an API token.
+Create a function to send messages to a specific Telegram chat ID using the node-telegram-bot-api library.
+Scheduling (Node.js library node-cron or node-schedule):
+
+Use a scheduler to periodically (e.g., every minute) query the database for reminders that are due to be sent.
+For each due reminder, use the Telegram integration function to send the message to the patient's Telegram chat ID.
+2. Frontend (React.js):
+
+Reminder Form:
+
+A form to create, edit, and delete reminders. Fields should include:
+Reminder Type (dropdown or input)
+Date and Time picker
+Custom Message (optional)
+Patient selection (if the form isn't already within a patient's dashboard).
+Reminder List:
+
+Display reminders in a table or list format.
+Include options to edit or delete reminders.
+API Interactions:
+
+Use axios or fetch to make API requests to your Express.js backend to create, read, update, and delete reminders.
+3. Integration with Hospital Management Application:
+
+Authentication: Ensure proper authentication and authorization so that only authorized users can access and manage reminders.
+Patient Context: The bot needs to know which patient the reminder is for. Ideally, the reminder form is within a patient's dashboard page, so you can easily pass the patient_id to the backend when creating a reminder.
+Telegram Chat ID: You'll need a way to securely associate a patient with their Telegram chat ID. Consider:
+A one-time link sent to the patient's Telegram. When they click it, it calls a backend endpoint that saves their chat_id in the database.
+A manual entry field in the patient's profile (less ideal).
+
+
 
 Final Bot Features
 Patients can:
