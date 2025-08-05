@@ -1,3 +1,30 @@
+health-reminder-bot/
+├── backend/
+│   ├── models/
+│   │   └── reminder.js
+│   ├── routes/
+│   │   ├── reminders.js
+│   │   └── patients.js
+│   ├── telegram.js
+│   ├── scheduler.js
+│   ├── db.js
+│   ├── app.js
+│   └── package.json
+├── frontend/
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── ReminderForm.js
+│   │   │   └── ReminderList.js
+│   │   ├── App.js
+│   │   └── index.js
+│   ├── public/
+│   │   └── index.html
+│   └── package.json
+├── .env
+└── README.md
+
+
+
 Final Bot Features
 Patients can:
 
